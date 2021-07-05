@@ -170,9 +170,9 @@ def ReadByte(file, Offset):
     return word
 
 
-def diagnose(filename, filedir, outFileList, debug=False):
+def diagnose(filename, filedir, outFileList, gc,demobec,debug=False):
     file = open(filename, "rb+")
-    header_output = diagnose2(file, filedir, debug)
+    header_output = diagnose2(file, filedir, gc,demobec,debug)
     
     headerfilename = filedir + outFileList
     if not os.path.exists(os.path.dirname(headerfilename)) and os.path.dirname(headerfilename):
@@ -180,14 +180,25 @@ def diagnose(filename, filedir, outFileList, debug=False):
     fheader = open(headerfilename, 'w')
     fheader.write(header_output)
 
-def diagnose2(file, filedir, debug=False):
+def diagnose2(file, filedir, gc,demobec,debug=False):
     output = ""
-    
-    file.seek(0x6)
-    data = file.read(10)
+
     BecHeader = namedtuple('BecHeader', ['FileAlignment', 'NrOfFiles', 'HeaderMagic'])
-    header = BecHeader._make(struct.unpack('<HII', data))
+    
+    if demobec == 1 :
+       file.seek(0x4) # bec
+       data = file.read(4)
+       numFiles = struct.unpack('<I', data)[0]
+       makeData = [0,numFiles,0]
+       header = BecHeader._make(makeData)
+    else:
+        file.seek(0x6)
+        data = file.read(10)
+        header = BecHeader._make(struct.unpack('<HII', data))
+
     print("Nr of Files in the bec-file: " + str(header.NrOfFiles))
+    print("File Alignment: " + str(header.FileAlignment))
+    print("IsGC : "+str(gc)+" IsDemo: "+str(demobec))
     output += hex(header.FileAlignment) + " " + hex(header.NrOfFiles) + " " + hex(header.HeaderMagic) + "\n"
     
     PathHash = []
@@ -391,18 +402,27 @@ if __name__ == "__main__":
     group.add_argument('-pack', action='store', nargs=3, type=str, metavar=("inputDir", "outputFile", "becFilelist"), help="pack files into a bec-archive")
     group.add_argument('-unpack', action='store', nargs=3, type=str, metavar=("inputFile", "outputDir", "becFilelist"), help="unpack files from a bec-archive")
     parser.add_argument("--gc", action="store_true", help="activate GC mode") # switch between PS2 and GC Mode, the bec-formats they use don't seem completely compatible
+    parser.add_argument("--demobec", action="store_true", help="demo file mode for bec") # switch between demo and non demo formats as they differ
+    
     args = parser.parse_args()
 
     start = time.time()
     debug = True
     gc = 0
+    demobec = 0
+    
     if args.gc:
         gc = 1
 
+    if args.demobec:
+        demobec = 1
+
+
     if args.pack:
-        createBecArchive(args.pack[0], args.pack[1], args.pack[2], gc, debug)
+        createBecArchive(args.pack[0], args.pack[1], args.pack[2], gc, demobec,debug)
     if args.unpack:
-        diagnose(args.unpack[0], args.unpack[1], args.unpack[2], debug)
+        diagnose(args.unpack[0], args.unpack[1], args.unpack[2], gc,demobec,debug)
+
 
     if debug:
         elapsed_time_fl = (time.time() - start)
