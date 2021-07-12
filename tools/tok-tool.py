@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+
+
 import os
 import sys
 import struct
@@ -186,7 +188,7 @@ def compressTok(filename, filename2, filename3, inputfile, debug=False):
             if dic_strings[word] >= 0x80:
                 byte1 += 0x80
                 lineInBytes += [byte1]
-                byte2 = ((dic_strings[word]) / 0x80)
+                byte2 = (int)((dic_strings[word]) / 0x80)
                 lineInBytes += [byte2]
             else:
                 lineInBytes += [byte1]
@@ -213,7 +215,7 @@ def compressTok(filename, filename2, filename3, inputfile, debug=False):
         i += 1
     for bytelist in linesInByts:
         for byte in bytelist:
-            output_rom2.write(bytes(int(byte)))
+            output_rom2.write(bytearray([byte]))
 
 
     if os.path.dirname(filename3) != "":
@@ -232,7 +234,7 @@ def compressTok(filename, filename2, filename3, inputfile, debug=False):
         if testvalue >= 128:
             byte1 += 0x80
             data += [byte1]
-            byte2 = (testvalue / 0x80)
+            byte2 = (int)(testvalue / 0x80)
             data += [byte2]
         else:
             data += [byte1]
@@ -240,7 +242,7 @@ def compressTok(filename, filename2, filename3, inputfile, debug=False):
         #print dic_lines[line], line, byte1, byte2
 	
     for byte in data:
-        output_rom3.write(bytearray(int(byte)))
+        output_rom3.write(bytearray([byte]))
 
 
 if __name__ == "__main__":

@@ -33,7 +33,7 @@ def WriteSectionInFile(fByteArray, dirname, filename, addr, size, debug=False):
     outFile.flush()
     outFile.close()
 
-    print("Write out file " + filename2)
+    #print("Write out file " + filename2)
 
 def file_worker():
     while True:
@@ -288,7 +288,7 @@ def alignFileSizeWithZeros(file, pos, alignment):
     file.write(b'\0' * amount)
 
 
-def createBecArchive(dir, filename, becmap, gc, debug=False):
+def createBecArchive(dir, filename, becmap, gc, demobec,ignorechecksum,debug=False):
     filealignment = 0x0
     NrOfFiles = 0x0
     HeaderMagic = 0x0
@@ -317,7 +317,14 @@ def createBecArchive(dir, filename, becmap, gc, debug=False):
     output_rom = open(filename, 'wb')
 
 	# write header
-    output_rom.write(struct.pack('<4sHHII', b" ceb", int(0x3), int(filealignment), int(NrOfFiles), int(HeaderMagic)))
+    
+    ignoreChecksumVersion = 0x1
+    useChecksumVersion = 0x3
+    version = useChecksumVersion
+    if ignorechecksum :
+      version = ignoreChecksumVersion
+    
+    output_rom.write(struct.pack('<4sHHII', b" ceb", int(version), int(filealignment), int(NrOfFiles), int(HeaderMagic)))
 
     # updated the filesizes
     RomMap.sort(key=operator.attrgetter('address')) # address
@@ -403,6 +410,7 @@ if __name__ == "__main__":
     group.add_argument('-unpack', action='store', nargs=3, type=str, metavar=("inputFile", "outputDir", "becFilelist"), help="unpack files from a bec-archive")
     parser.add_argument("--gc", action="store_true", help="activate GC mode") # switch between PS2 and GC Mode, the bec-formats they use don't seem completely compatible
     parser.add_argument("--demobec", action="store_true", help="demo file mode for bec") # switch between demo and non demo formats as they differ
+    parser.add_argument("--ignorechecksum", action="store_true", help="test ignore checksum for repack") # 
     
     args = parser.parse_args()
 
@@ -410,16 +418,19 @@ if __name__ == "__main__":
     debug = True
     gc = 0
     demobec = 0
-    
+    ignorechecksum = 0	
+	
     if args.gc:
         gc = 1
 
     if args.demobec:
         demobec = 1
 
+    if args.ignorechecksum:
+        ignorechecksum = 1
 
     if args.pack:
-        createBecArchive(args.pack[0], args.pack[1], args.pack[2], gc, demobec,debug)
+        createBecArchive(args.pack[0], args.pack[1], args.pack[2], gc, demobec,ignorechecksum,debug)
     if args.unpack:
         diagnose(args.unpack[0], args.unpack[1], args.unpack[2], gc,demobec,debug)
 
