@@ -4,7 +4,7 @@ import os
 import sys
 import struct
 import operator
-
+import binascii
 
 def compressTok(filename, filename2, filename3, inputfile, debug=False):
     dic_strings = {} # dictionary with string and nr of appearances
@@ -12,39 +12,56 @@ def compressTok(filename, filename2, filename3, inputfile, debug=False):
     list_file = []
     output = ""
 	
+    stringsDebugName = "./python2/stringsdebug.txt"
+    if os.path.dirname(stringsDebugName) != "":
+        if not os.path.exists(os.path.dirname(stringsDebugName)):
+            os.makedirs(os.path.dirname(stringsDebugName))
+    stringsdebug = open(stringsDebugName, 'wb')
+
     with open(inputfile) as fin:
         for line in fin:
             if line.strip() == "":
                 continue
+            if line.startswith("//"):
+                continue
+    
             newline = ""
             words = line.split()
             for word in words:
+                #stringsdebug.write(word)
+
                 word = word.strip().rstrip(",")
+                #stringsdebug.write(word)
+
                 if word == "//": # skip rest of line after a comment
+                    stringsdebug.write("comment skipping : "+word)
                     continue
                 if (word in dic_strings):
                     dic_strings[word] += 1
+                    #stringsdebug.write("updating : "+word+"  "+str(dic_strings[word])+"\r")               
                 else:
                     dic_strings[word] = 1
+                    #stringsdebug.write("adding : "+word+"\r")               
                 newline += word + " "
             if newline in dic_lines:
                 dic_lines[newline] += 1
             else:
                 dic_lines[newline] = 1
             list_file += [newline]
+    
+    
+    #stringsdebug.write("LF : "+str(list_file))
 
-
-    if os.path.dirname("./stringsdebug.txt") != "":
-        if not os.path.exists(os.path.dirname("./stringsdebug.txt")):
-            os.makedirs(os.path.dirname("./stringsdebug.txt"))
-    stringsdebug = open("./stringsdebug.txt", 'wb')
     absoffset = 0
     nrofStrings = 0
-    sorted_strings = sorted(dic_strings.items(), key=operator.itemgetter(1), reverse=True)
+    sorted_strings = sorted(dic_strings.items(), key=operator.itemgetter(1,0), reverse=True)
+    #sorted_strings = dic_strings.items()
+    #stringsdebug.write(sorted_strings)
+
     for key, val in sorted_strings:
         dic_strings[key] = nrofStrings
         #print key, "=>", val
-        stringsdebug.write(key + " => " + hex(dic_strings[key]) + "\n")
+        stringsdebug.write(key + " , "+str(val)+  " => " + hex(dic_strings[key]) + "\r")
         absoffset += len(key)
         nrofStrings += 1
     #print("nrofStrings*3: " + hex(nrofStrings*3))
@@ -60,26 +77,31 @@ def compressTok(filename, filename2, filename3, inputfile, debug=False):
         output_rom.write(struct.pack('<H', int(offset)))
         offset += len(key)
         output_rom.write(struct.pack('<B', int(0)))
+        
     for key, val in sorted_strings:
         string = key[:-1]
+        
         string += chr(ord(key[len(key)-1]) + 0x80)
-        output_rom.write(struct.pack('<' + str(len(key)) + 's', string))
+        mybytearray= struct.pack('<' + str(len(key)) + 's', string)
 
+        output_rom.write(mybytearray)
+        
 
-
-    if os.path.dirname("./linedebug.txt") != "":
-        if not os.path.exists(os.path.dirname("./linedebug.txt")):
-            os.makedirs(os.path.dirname("./linedebug.txt"))
-    linedebug = open("./linedebug.txt", 'wb')
+    linesDebugName = "./python2/linedebug.txt"
+    if os.path.dirname(linesDebugName) != "":
+        if not os.path.exists(os.path.dirname(linesDebugName)):
+            os.makedirs(os.path.dirname(linesDebugName))
+    linedebug = open(linesDebugName, 'wb')
     absoffset = 0
     nrofLines = 0
     linesInByts = []
-    sorted_lines = sorted(dic_lines.items(), key=operator.itemgetter(1), reverse=True)
+    sorted_lines = sorted(dic_lines.items(), key=operator.itemgetter(1,0), reverse=True)
     #print(sorted_lines)
     for key, val in sorted_lines:
         dic_lines[key] = nrofLines
         #print key, "=>", nrofLines
-        linedebug.write(key + " => " + hex(dic_lines[key]) + "\n")
+        linedebug.write(key + " => " + hex(dic_lines[key]) + "\r")
+        #linedebug.write(key + " => " + str(dic_lines[key]) + "\r")
         lineInBytes = []
         words = key.split()
         for word in words:
@@ -176,4 +198,4 @@ if __name__ == "__main__":
 
     output = compressTok(filename, filename2, filename3, inputfile)
 	
-    print output
+    print(output)
