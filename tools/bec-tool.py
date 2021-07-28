@@ -8,10 +8,13 @@ import argparse
 import time
 import hashlib
 import gladiushashes
+import filenamehash
 import queue
 import threading
 from collections import namedtuple
-
+from os import listdir,walk
+from os.path import isfile, join, relpath,basename,commonpath,abspath,realpath,normpath,dirname
+from filenamehash import getPathHash
 
 # PACK BEC-ARCHIVE
 #####################
@@ -84,6 +87,7 @@ def GetNumberedFilenameOfFile(file, Offset, i):
         filename = str(i) + ".pms2"
     elif (ReadWord(file, Offset) == 0x40656368) and (ReadWord(file, Offset+4) == 0x6F206F66):
         filename = str(i) + ".bat"
+        
     elif (ReadWord(file, Offset) == 0x504F5309):
         filename = str(i) + ".pos"
     elif (ReadWord(file, Offset) == 0x0D0A6675):
@@ -268,8 +272,8 @@ RomMap = []
 
 class RomSection():
     def __init__(self, name, name2, hash, address, size2, flags, size, checksum, checksum2):
-        self.name = name
-        self.name2 = name2
+        self.name = name.replace("\\","/").lower()
+        self.name2 = name2.replace("\\","/").lower()
         self.hash = hash
         self.address = address
         self.new_address = address
@@ -278,14 +282,106 @@ class RomSection():
         self.size2 = size2
         self.checksum = checksum
         self.checksum2 = checksum2
+    
+    def __init__(self,data):
+        _init__(self,data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],data[8]
+        self.name = data[0].replace("\\","/").lower()
+        self.name2 = data[1].replace("\\","/").lower()
+        self.hash = data[2]
+        self.address = data[3]
+        self.new_address = data[3]
+        self.size = data[4]
+        self.size2 = data[5]
+        self.flags = data[6]
+        self.checksum = data[7]
+        self.checksum2 = data[8]
 
-def addRomSection(name, name2, hash, address, size2, flags, size, checksum, checksum2): # filename, hash?, offset, offsetcorrection, flags?, filesize, checksum?
-    RomMap.append(RomSection(name, name2, hash, address, size2, flags, size, checksum, checksum2))
+
+def addRomSection(romSection):
+    RomMap.append(romSection)
 
 def alignFileSizeWithZeros(file, pos, alignment):
     target = (pos + alignment - 1) & (0x100000000-alignment)
     amount = target - pos
     file.write(b'\0' * amount)
+
+def scanFiles(dir):
+    scannedRomMap = []
+    for root, directories, files in os.walk(dir, topdown=False):
+        for name in files:
+            #print(relpath(os.path.join(root,name),dir))
+            fullName = relpath(os.path.join(root,name),dir)
+            romSection = RomSection([fullName,"nothing","",0,0,0,0,0,0])
+            scannedRomMap.append(romSection)
+
+    return scannedRomMap
+    
+def readRomSection(data):
+    return RomSection(data)
+
+
+def readFileList(becmap):
+    dir = os.path.dirname(becmap)
+    scannedData = scanFiles(dir)
+    fileListData = []
+    
+    with open(becmap) as fin:
+        for line in fin:
+            words = line.split()
+            if len(words) == 3:
+                fileAlignment = int(words[0], 16)
+                nrOfFiles = int(words[1], 16)
+                headerMagic = int(words[2], 16)
+            else:
+                words_temp = line.split("\"") # filename, filename2
+                words = [words_temp[1]] + [words_temp[3]] + words_temp[4].split() # ?, offset, flags?, filesize
+                if len(words) == 9:
+                    romSection = readRomSection(words)
+                    #print(romSection.name)
+                    fileListData.append(romSection)
+                      
+    #print(romSections)
+    diffList = diffFiles(fileListData,scannedData)
+    print("fileListData "+str(len(fileListData))+" scannedData "+str(len(scannedData))+"  diffList "+str(len(diffList)))
+
+def diffFiles(fileListData,scannedData):
+    fileListDataDictionary = {}
+    scannedDataDictionary = {}
+    for romData in fileListData:
+        fileListDataDictionary[romData.name] = romData
+    for romData in scannedData:
+        scannedDataDictionary[romData.name] = romData
+
+
+    scannedSet = set(scannedDataDictionary.keys())
+    fileListSet = set(fileListDataDictionary.keys())
+
+    #scannedList = list(scannedDataDictionary.keys()).sort()
+    #fileListList = list(fileListDataDictionary.keys()).sort()
+
+    scannedList = list(scannedDataDictionary)
+    fileListList = list(fileListDataDictionary)
+    
+    scannedList.sort()
+    fileListList.sort()
+
+
+    writeListToFile("scanned.txt",scannedList)
+    writeListToFile("fileListSet.txt",fileListList)
+
+    newFiles = scannedSet - fileListSet
+    #for file in newFiles :
+        #print(file)
+    return newFiles
+
+def writeListToFile(name,data):
+        outFile = open(name, 'w')
+        for item in data:
+            outFile.write(str(item))
+            outFile.write("\n")       
+            
+        outFile.flush()
+        outFile.close()
 
 
 def createBecArchive(dir, filename, becmap, gc, demobec,ignorechecksum,debug=False):
@@ -305,11 +401,13 @@ def createBecArchive(dir, filename, becmap, gc, demobec,ignorechecksum,debug=Fal
                 words = [words_temp[1]] + [words_temp[3]] + words_temp[4].split() # ?, offset, flags?, filesize
                 #print(words)
                 if len(words) == 9:
-                    FileSize = os.path.getsize(dir + "/" + words[0])
+                    becLine = readBecLine(words)
+                    FileSize = os.path.getsize(dir + "/" + becLine.Name)
                     FileSize2 = 0
-                    if words[1] != "nothing":
-                        FileSize2 = os.path.getsize(dir + "/" + words[1])
-                    addRomSection(words[0], words[1], int(words[2], 16), int(words[3], 16), FileSize2, int(words[5], 16), FileSize, int(words[7], 16), int(words[8], 16)) # filename, filename2, hash?, offset, filesize2, flags?, filesize, checksum?, checksum2?
+                    if becLine.Name2 != "nothing":
+                        FileSize2 = os.path.getsize(dir + "/" + becLine.Name)
+                    romSection = RomSection(words,FileSize,FileSize2)    
+                    addRomSection(romSection)
         
     if os.path.dirname(filename) != "":
         if not os.path.exists(os.path.dirname(filename)):
@@ -408,6 +506,9 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-pack', action='store', nargs=3, type=str, metavar=("inputDir", "outputFile", "becFilelist"), help="pack files into a bec-archive")
     group.add_argument('-unpack', action='store', nargs=3, type=str, metavar=("inputFile", "outputDir", "becFilelist"), help="unpack files from a bec-archive")
+    group.add_argument('-scan', action='store', nargs=1, type=str, metavar=("inputDir", ), help="scan files in archive")
+    group.add_argument('-readbec', action='store', nargs=1, type=str, metavar=("inputFile", ), help="read bec file")
+
     parser.add_argument("--gc", action="store_true", help="activate GC mode") # switch between PS2 and GC Mode, the bec-formats they use don't seem completely compatible
     parser.add_argument("--demobec", action="store_true", help="demo file mode for bec") # switch between demo and non demo formats as they differ
     parser.add_argument("--ignorechecksum", action="store_true", help="test ignore checksum for repack") # 
@@ -433,7 +534,10 @@ if __name__ == "__main__":
         createBecArchive(args.pack[0], args.pack[1], args.pack[2], gc, demobec,ignorechecksum,debug)
     if args.unpack:
         diagnose(args.unpack[0], args.unpack[1], args.unpack[2], gc,demobec,debug)
-
+    if args.scan:
+        scanFiles(args.scan[0])
+    if args.readbec:
+        readFileList(args.readbec[0])
 
     if debug:
         elapsed_time_fl = (time.time() - start)
