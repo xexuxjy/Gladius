@@ -26,7 +26,7 @@ class RomSection():
         
         self.PathHash = int(hash)
         if self.PathHash == 0 :        
-            ComputedHash = computeFileHash(self.name)
+            ComputedHash = computeFileHash(self.FileName)
         
         self.DataOffset = int(address)
         self.OriginalDataOffset = self.DataOffset
@@ -113,7 +113,7 @@ def scanFiles(dir):
 
 def readFileList(becmap):
     dir = os.path.dirname(becmap)
-    #scannedData = scanFiles(dir)
+    scannedData = scanFiles(dir)
     fileListData = []
     
     with open(becmap) as fin:
@@ -137,18 +137,18 @@ def readFileList(becmap):
             lineCount += 1
     
     #print(romSections)
-    #diffList = diffFiles(fileListData,scannedData)
+    diffList = diffFiles(fileListData,scannedData)
     #print("fileListData "+str(len(fileListData))+" scannedData "+str(len(scannedData))+"  diffList "+str(len(diffList)))
     print ("Files : "+str(len(fileListData)))
-    return [fileListData,fileAlignment,headerMagic]
+    return [fileListData,fileAlignment,headerMagic,diffList]
 
 def diffFiles(fileListData,scannedData):
     fileListDataDictionary = {}
     scannedDataDictionary = {}
     for romData in fileListData:
-        fileListDataDictionary[romData.name] = romData
+        fileListDataDictionary[romData.FileName] = romData
     for romData in scannedData:
-        scannedDataDictionary[romData.name] = romData
+        scannedDataDictionary[romData.FileName] = romData
 
 
     scannedSet = set(scannedDataDictionary.keys())
