@@ -16,7 +16,9 @@ from os import listdir,walk
 from os.path import isfile, join, relpath,basename,commonpath,abspath,realpath,normpath,dirname
 
 separator = ','
+fileAtEnd = 0xC0000000
 
+headerFile = "filelist.txt"
 
 ###########################################################################################################################################################
 
@@ -103,9 +105,13 @@ def scanFiles(dir):
     scannedRomMap = []
     for root, directories, files in os.walk(dir, topdown=False):
         for name in files:
+            if name.lower() == headerFile :
+                print("Skipping "+headerFile)
+                continue
+                
             #print(relpath(os.path.join(root,name),dir))
             fullName = relpath(os.path.join(root,name),dir)
-            romSection = RomSection.fromList([fullName,"0","0","0","0"])
+            romSection = RomSection.fromList([fullName,"0",str(fileAtEnd),"0","0"])
             scannedRomMap.append(romSection)
 
     return scannedRomMap
@@ -114,6 +120,7 @@ def scanFiles(dir):
 def readFileList(becmap):
     dir = os.path.dirname(becmap)
     scannedData = scanFiles(dir)
+    
     fileListData = []
     
     with open(becmap) as fin:
@@ -138,6 +145,8 @@ def readFileList(becmap):
     
     #print(romSections)
     diffList = diffFiles(fileListData,scannedData)
+    
+  
     #print("fileListData "+str(len(fileListData))+" scannedData "+str(len(scannedData))+"  diffList "+str(len(diffList)))
     print ("Files : "+str(len(fileListData)))
     return [fileListData,fileAlignment,headerMagic,diffList]
@@ -164,9 +173,14 @@ def diffFiles(fileListData,scannedData):
     #writeListToFile("fileListSet.txt",fileListList)
 
     newFiles = scannedSet - fileListSet
+    
+    returnList = []
+    for file in newFiles : 
+        returnList.append(RomSection.fromList([file,"0",str(fileAtEnd),"0","0"])    )
+    
     #for file in newFiles :
         #print(file)
-    return newFiles
+    return returnList
 
 def writeListToFile(name,data):
         outFile = open(name, 'w')
@@ -245,7 +259,7 @@ def unpackBecArchive(filename, filedir, demobec,debug=False):
     file = open(filename, "rb+")
     header_output = unpackBecArchive2(file, filedir,demobec,debug)
     
-    headerfilename = filedir + "FileList.txt"
+    headerfilename = filedir + headerFile
     if not os.path.exists(os.path.dirname(headerfilename)) and os.path.dirname(headerfilename):
         os.makedirs(os.path.dirname(headerfilename))
     fheader = open(headerfilename, 'w')
@@ -337,6 +351,10 @@ def createBecArchive(dir, filename, becmap, gc, demobec,ignorechecksum,debug=Fal
     HeaderMagic = readfileListResults[2]
 
     RomMap.extend(readfileListResults[0])
+
+    print("*** : "+str(readfileListResults[3]))
+    # include any new files
+    RomMap.extend(readfileListResults[3])
         
     if os.path.dirname(filename) != "":
         if not os.path.exists(os.path.dirname(filename)):
@@ -377,6 +395,13 @@ def createBecArchive(dir, filename, becmap, gc, demobec,ignorechecksum,debug=Fal
     
     for item in RomMap:
         duplicate = False
+        
+        oldSize = item.DataSize
+        item.DataSize = os.path.getsize(dir + "/" + item.FileName)
+        if oldSize != item.DataSize:
+            print(item.FileName + " size changed : "+str(oldSize) + " / "+str(item.DataSize))
+        
+        
         if lastItem is not None:
            if lastItem.OriginalDataOffset == item.OriginalDataOffset:
                duplicate = True
