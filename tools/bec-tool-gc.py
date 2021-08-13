@@ -28,7 +28,8 @@ class RomSection():
         
         self.PathHash = int(hash)
         if self.PathHash == 0 :        
-            ComputedHash = computeFileHash(self.FileName)
+            self.PathHash = computeFileHash(self.FileName)
+            
         
         self.DataOffset = int(address)
         self.OriginalDataOffset = self.DataOffset
@@ -37,6 +38,7 @@ class RomSection():
         if self.CheckSum > 0 :
            self.CheckSum = 0x2000000
 
+        self.IsNew = False
         #if self.CheckSum > 0 :        
         #    print(self.FileName + " "+str(self.CheckSum)+"\n")
     
@@ -176,7 +178,9 @@ def diffFiles(fileListData,scannedData):
     
     returnList = []
     for file in newFiles : 
-        returnList.append(RomSection.fromList([file,"0",str(fileAtEnd),"0","0"])    )
+        romSection = RomSection.fromList([file,"0",str(fileAtEnd),"0","0"])    
+        romSection.IsNew = True
+        returnList.append(romSection)
     
     #for file in newFiles :
         #print(file)
@@ -397,13 +401,14 @@ def createBecArchive(dir, filename, becmap, gc, demobec,ignorechecksum,debug=Fal
         duplicate = False
         
         oldSize = item.DataSize
+        item.OldSize = oldSize
         item.DataSize = os.path.getsize(dir + "/" + item.FileName)
         if oldSize != item.DataSize:
             print(item.FileName + " size changed : "+str(oldSize) + " / "+str(item.DataSize))
         
         
         if lastItem is not None:
-           if lastItem.OriginalDataOffset == item.OriginalDataOffset:
+           if lastItem.OriginalDataOffset == item.OriginalDataOffset and item.IsNew == False:
                duplicate = True
         
         if duplicate :
@@ -411,6 +416,10 @@ def createBecArchive(dir, filename, becmap, gc, demobec,ignorechecksum,debug=Fal
             item.Checksum = 0x2000000
             item.DataOffset = lastItem.DataOffset
         else:
+            if item.IsNew :
+               print("Adding new item "+item.FileName+" at position "+str(currentAddr))
+               
+            item.DataOffset = currentAddr
             currentAddr += item.DataSize
             currentAddr += (FileAlignment - 1)
             # checksum
@@ -443,7 +452,7 @@ def createBecArchive(dir, filename, becmap, gc, demobec,ignorechecksum,debug=Fal
     for item in RomMap:
         #handle items that had the same offset in the file
         if item.DataOffset < output_rom.tell():
-            #print("Skipping duplicate")
+            #print("Skipping duplicate "+item.FileName)
             continue
             
         filepath = dir + "/" + item.FileName
@@ -454,7 +463,10 @@ def createBecArchive(dir, filename, becmap, gc, demobec,ignorechecksum,debug=Fal
         output_rom.write(filedata)
         if (item.DataSize > 0):
             output_rom.write(struct.pack('<II', item.CheckSum, 0)) 
-		
+	
+        if (item.OldSize != item.DataSize):
+            print("Adding new file "+item.FileName+" hash "+str(item.PathHash)+ " with dataoffset + "+str(item.DataOffset)+" size "+str(item.DataSize))
+	
         alignFileSizeWithZeros(output_rom, output_rom.tell(), FileAlignment)
         #print("After data write and align : "+str(output_rom.tell()))
 		

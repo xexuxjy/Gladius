@@ -1,4 +1,4 @@
-@echo off
+rem @echo off
 set BASE_DIR=D:\GladiusISOWorkingExtracted\python-gc\
 set OUTPUT_DIR=%BASE_DIR%\gc\data\config\
 set EXTRACTED_DIR=%BASE_DIR%\gc\
