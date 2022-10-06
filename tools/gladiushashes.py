@@ -24295,6 +24295,16 @@ pathhashes = {
 0x8297683e : "data/texture/bundles/interfacemodule_loadregional_i.ptx",
 0x30b7b42e : "data/texture/bundles/interfacemodule_loadregional_n.ptx",
 0xa8c7e71d : "data/texture/bundles/interfacemodule_loadregional_s.ptx",
+
+# duplicates as hash values may be off.
+0x1b2c9b41 : "data/texture/bundles/battlehud_interfacegui_swingmeter.ptx",
+0xedc61749 : "data/texture/bundles/interfacemodule_loadregional_e.ptx",
+0x2836fa48 : "data/texture/bundles/interfacemodule_loadregional_i.ptx",
+0x9a162658 : "data/texture/bundles/interfacemodule_loadregional_n.ptx",
+0x266756b : "data/texture/bundles/interfacemodule_loadregional_s.ptx",
+
+
+
 0x7ff76ccb : "data/texture/bundles/leaguestate.ptx",
 0xcd3033c7 : "data/texture/bundles/mainmenu.ptx",
 0x43098d47 : "data/texture/bundles/mapgrid.ptx",
