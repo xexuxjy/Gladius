@@ -252,8 +252,8 @@ def getFilename(hashcode, count):
       else:
         return str(count)+".bin"
 
-def unpackBecArchive(filename, filedir, demobec,debug=False):
-
+def unpackBecArchive(filename, filedir, demobec,platform,debug=False):
+    print("Platform is : "+platform)
     print("Filename : "+filename)
     print("Filedir : "+filedir)
     file = open(filename, "rb+")
@@ -304,7 +304,7 @@ def unpackBecArchive2(file, filedir,demobec,debug=False):
 
 
 
-    RomSections.sort(key=operator.attrgetter('DataOffset')) # address
+    #RomSections.sort(key=operator.attrgetter('DataOffset')) # address
 
 
 
@@ -348,8 +348,7 @@ def alignFileSizeWithZeros(file, pos, alignment):
     file.write(b'\0' * amount)
 
 ###########################################################################################################################################################
-
-def createBecArchive(dir, filename, becmap, gc, demobec,ignorechecksum,debug=False):
+def createBecArchive(dir, filename, becmap, demobec,platform,debug=False):
     print("createBecArchive")
     FileAlignment = 0x0
     NrOfFiles = 0x0
@@ -361,7 +360,13 @@ def createBecArchive(dir, filename, becmap, gc, demobec,ignorechecksum,debug=Fal
     FileAlignment = readfileListResults[1]
     HeaderMagic = readfileListResults[2]
 
+    print("Platform is : "+platform)
+    
+    compress = False
+    if platform == "XBOX" or platform == "PS2" :
+        compress = True
 
+    print("compress is set to : "+str(compress))	
 
 
     RomMap.extend(readfileListResults[0])
@@ -422,27 +427,30 @@ def createBecArchive(dir, filename, becmap, gc, demobec,ignorechecksum,debug=Fal
         filepath = normpath(filepath)
         file = open(filepath, "rb")
 
+        item.DataSize = os.path.getsize(filepath)
+
         filedata = bytearray(file.read())
 
-        compressedData = zlib.compress(filedata,1)
-        compressionRatio = 1.0
+        if compress : 
+            compressedData = zlib.compress(filedata,1)
+            compressionRatio = 1.0
 
-        if len(filedata) > 0 :
-            compressionRatio = float(len(compressedData)) / float(len(filedata))
+            if len(filedata) > 0 :
+                compressionRatio = float(len(compressedData)) / float(len(filedata))
 
-        if compressionRatio < 0.9 :
-            #print("Will compress file : "+item.FileName+" , "+str(len(filedata))+" , "+str(len(compressedData))+" , "+str(compressionRatio))
-            filedata = compressedData
-            item.CompressedSize = len(compressedData)
-        else :
-            #print("Not compressing file : "+item.FileName+" , "+str(len(filedata))+" , "+str(len(compressedData))+" , "+str(compressionRatio))
+            if compressionRatio < 0.9 :
+                #print("Will compress file : "+item.FileName+" , "+str(len(filedata))+" , "+str(len(compressedData))+" , "+str(compressionRatio))
+                filedata = compressedData
+                item.CompressedSize = len(compressedData)
+            else :
+                #print("Not compressing file : "+item.FileName+" , "+str(len(filedata))+" , "+str(len(compressedData))+" , "+str(compressionRatio))
+                item.CompressedSize = 0
+        else:
             item.CompressedSize = 0
-            
-        file.close()
-
-        item.DataSize = os.path.getsize(dir + "/" + item.FileName)
 
         item.FileByteArray = filedata
+            
+        file.close()
 
         if oldSize != item.DataSize:
             print(item.FileName + " size changed : "+str(oldSize) + " / "+str(item.DataSize))
@@ -465,6 +473,7 @@ def createBecArchive(dir, filename, becmap, gc, demobec,ignorechecksum,debug=Fal
             item.DataOffset = currentAddr
             
             currentAddr += item.storedSize()
+            currentAddr += (FileAlignment - 1)
             currentAddr += checksumSize
             currentAddr += getAlignment(currentAddr,FileAlignment)
         
@@ -473,8 +482,8 @@ def createBecArchive(dir, filename, becmap, gc, demobec,ignorechecksum,debug=Fal
 
 
 
-    #RomMap.sort(key=operator.attrgetter('PathHash')) # address
-    RomMap.sort(key=operator.attrgetter('DataOffset')) # address
+    RomMap.sort(key=operator.attrgetter('PathHash')) # address
+    #RomMap.sort(key=operator.attrgetter('DataOffset')) # address
     for item in RomMap:
         output_rom.write(struct.pack('<I', item.PathHash))
         output_rom.write(struct.pack('<I', item.DataOffset))
@@ -557,7 +566,7 @@ if __name__ == "__main__":
     group.add_argument('-readfilelist', action='store', nargs=1, type=str, metavar=("inputFile", ), help="read file list and package extra files")
 
     parser.add_argument("--demobec", action="store_true", help="demo file mode for bec") # switch between demo and non demo formats as they differ
-    parser.add_argument("--ignorechecksum", action="store_true", help="test ignore checksum for repack") # 
+    parser.add_argument("--platform", default='GC',const='GC', nargs='?', choices=['GC','PS2','XBOX'], help="platform, one of : GC,PS2,XBOX")
     
     args = parser.parse_args()
 
@@ -569,13 +578,11 @@ if __name__ == "__main__":
     if args.demobec:
         demobec = 1
 
-    if args.ignorechecksum:
-        ignorechecksum = 1
 
     print("Main demobec "+str(demobec))
     
     if args.pack:
-        outputText = createBecArchive(args.pack[0], args.pack[1], args.pack[2], demobec,ignorechecksum,debug)
+        outputText = createBecArchive(args.pack[0], args.pack[1], args.pack[2], demobec,args.platform,debug)
     
         
         if not os.path.exists(os.path.dirname(repackFile)) and os.path.dirname(repackFile):
@@ -585,7 +592,7 @@ if __name__ == "__main__":
         
         
     if args.unpack:
-        unpackBecArchive(args.unpack[0], args.unpack[1], demobec,debug)
+        unpackBecArchive(args.unpack[0], args.unpack[1], demobec,args.platform,debug)
     #if args.scan:
     #    scanFiles(args.scan[0])
     if args.readfilelist:
