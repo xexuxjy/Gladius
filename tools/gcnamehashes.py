@@ -27864,5 +27864,7 @@ filenameHashes = {
 0x88ad0aeb : "data/units/unitunits.idx",
 0x66DFD023 : "data/mesh/weapons/staff/candycane.pax",
 0x516A3637 : "data/mesh/weapons/staff/candycane.ptx",
+0xE44065AD : "data/mesh/weapons/staff/candycane128.ptx",
+0x779DF1E9 : "data/mesh/weapons/staff/candycane256.ptx",
 }
 
