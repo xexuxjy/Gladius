@@ -341,10 +341,10 @@ RomMap = []
 
 
 def alignFileSizeWithZeros(file, pos, alignment):
-    #target = (pos + alignment - 1) & (0x100000000-alignment)
-    #amount = target - pos
+    target = (pos + alignment - 1) & (0x100000000-alignment)
+    amount = target - pos
     
-    amount = getAlignment(pos,alignment)
+    #amount = getAlignment(pos,alignment)
     file.write(b'\0' * amount)
 
 ###########################################################################################################################################################
@@ -400,8 +400,11 @@ def createBecArchive(dir, filename, becmap, demobec,platform,debug=False):
     
     addr = 0x10 + NrOfFiles*0x10
 
-    align = getAlignment(addr,FileAlignment)
-    addr += align
+    #align = getAlignment(addr,FileAlignment)
+    #addr += align
+    
+    addr += (FileAlignment - 1)
+    addr &= (0x100000000 - FileAlignment)
     
     print("After header position : "+str(output_rom.tell()))
     print("Start address : "+str(addr))
@@ -475,7 +478,8 @@ def createBecArchive(dir, filename, becmap, demobec,platform,debug=False):
             currentAddr += item.storedSize()
             currentAddr += (FileAlignment - 1)
             currentAddr += checksumSize
-            currentAddr += getAlignment(currentAddr,FileAlignment)
+            #currentAddr += getAlignment(currentAddr,FileAlignment)
+            currentAddr &= (0x100000000 - FileAlignment)
         
         TotalFileLength += item.DataSize    
         lastItem = item
