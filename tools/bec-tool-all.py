@@ -152,6 +152,7 @@ def readFileList(becmap):
             # header
             if lineCount == 0:
                 fileAlignment = int(words[0])
+                print("readFileList "+becmap+" FA : "+str(fileAlignment))
                 nrOfFiles = int(words[1])
                 headerMagic = int(words[2])
             else:
@@ -270,6 +271,7 @@ def unpackBecArchive2(file, filedir,demobec,debug=False):
 
     RomSections = []
     
+    totalUnpacked = 0
 
     BecHeader = namedtuple('BecHeader', ['FileAlignment', 'NrOfFiles', 'HeaderMagic'])
     
@@ -303,6 +305,8 @@ def unpackBecArchive2(file, filedir,demobec,debug=False):
         count += 1
 
 
+    totalUnpacked += (header.NrOfFiles * 16)
+
 
     #RomSections.sort(key=operator.attrgetter('DataOffset')) # address
 
@@ -313,6 +317,8 @@ def unpackBecArchive2(file, filedir,demobec,debug=False):
         romSection.FileByteArray = ReadSection(file, romSection.DataOffset, romSection.DataSize)
         
         localByteArray = bytearray(romSection.FileByteArray)
+        totalUnpacked += len(localByteArray)
+        
         
         if len(localByteArray) >0 and localByteArray[0] == 0x78 :
             localByteArray = zlib.decompress(romSection.FileByteArray)
@@ -329,7 +335,10 @@ def unpackBecArchive2(file, filedir,demobec,debug=False):
         dataLine += str(romSection.DataSize) + "\n"
         output += dataLine
 
-        
+    
+    
+    print("Total unpacked was : "+str(totalUnpacked))
+    
     return output
 
 
@@ -555,7 +564,7 @@ def createBecArchive(dir, filename, becmap, demobec,platform,debug=False):
         lastItem = item
     
     
-    print("Total data stored : "+str(TotalFileLength))
+    print("Total data packed : "+str(TotalFileLength))
     
     return output
 
