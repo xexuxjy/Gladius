@@ -41,6 +41,7 @@ class RomSection():
 
         self.IsNew = False
         self.IsDuplicate = ((int(compressedSize) & duplicateFlag) != 0)
+
     
     
     @classmethod
@@ -208,7 +209,6 @@ def writeListToFile(name,data):
 
 
 
-# PACK BEC-ARCHIVE
 ###########################################################################################################################################################
 
 
@@ -244,14 +244,16 @@ def ReadByte(file, Offset):
     word,  = struct.unpack("<B", data)
     return word
 
-###########################################################################################################################################################
-
-
 def getFilename(hashcode, count):
       if hashcode in gcnamehashes.filenameHashes:
           return gcnamehashes.filenameHashes[hashcode]
       else:
         return str(count)+".bin"
+
+
+# UNPACK BEC-ARCHIVE
+
+###########################################################################################################################################################
 
 def unpackBecArchive(filename, filedir, demobec,platform,debug=False):
     print("Platform is : "+platform)
@@ -272,6 +274,7 @@ def unpackBecArchive2(file, filedir,demobec,debug=False):
     RomSections = []
     
     totalUnpacked = 0
+    totalDuplicates = 0
 
     BecHeader = namedtuple('BecHeader', ['FileAlignment', 'NrOfFiles', 'HeaderMagic'])
     
@@ -308,7 +311,7 @@ def unpackBecArchive2(file, filedir,demobec,debug=False):
     totalUnpacked += (header.NrOfFiles * 16)
 
 
-    #RomSections.sort(key=operator.attrgetter('DataOffset')) # address
+    RomSections.sort(key=operator.attrgetter('DataOffset')) # address
 
 
 
@@ -318,6 +321,9 @@ def unpackBecArchive2(file, filedir,demobec,debug=False):
         
         localByteArray = bytearray(romSection.FileByteArray)
         totalUnpacked += len(localByteArray)
+        
+        if romSection.IsDuplicate :
+            totalDuplicates = totalDuplicates + 1    
         
         
         if len(localByteArray) >0 and localByteArray[0] == 0x78 :
@@ -338,12 +344,12 @@ def unpackBecArchive2(file, filedir,demobec,debug=False):
     
     
     print("Total unpacked was : "+str(totalUnpacked))
+    print("Total duplicates was : "+str(totalDuplicates))
     
     return output
 
 
 
-# UNPACK BEC-ARCHIVE
 ###########################################################################################################################################################
 
 RomMap = []
@@ -356,6 +362,8 @@ def alignFileSizeWithZeros(file, pos, alignment):
     #amount = getAlignment(pos,alignment)
     file.write(b'\0' * amount)
 
+
+# PACK BEC-ARCHIVE
 ###########################################################################################################################################################
 def createBecArchive(dir, filename, becmap, demobec,platform,debug=False):
     print("createBecArchive")
@@ -475,7 +483,6 @@ def createBecArchive(dir, filename, becmap, demobec,platform,debug=False):
         
         if duplicate :
             # duplicate has the real compressed size value, but also a 1 in most significant bit
-            #lastItem.Checksum = duplicateFlag
             item.CompressedSize = lastItem.CompressedSize | duplicateFlag
             item.DataOffset = lastItem.DataOffset
         else:
@@ -484,11 +491,23 @@ def createBecArchive(dir, filename, becmap, demobec,platform,debug=False):
                
             item.DataOffset = currentAddr
             
+            #if item.DataOffset != item.OriginalDataOffset :
+            #    print("Different offset "+item.FileName+"   "+str(item.unpackedCompressedSize() > 0)+ "   Original : "+str(item.OriginalDataOffset)+"   New : "+str(item.DataOffset) + "    diff = "+ str(item.DataOffset-item.OriginalDataOffset))
+            #    break;
+            #else :
+            #    print("Same offset : "+item.FileName+"  "+str(item.unpackedCompressedSize() > 0))
+            
             currentAddr += item.storedSize()
             currentAddr += (FileAlignment - 1)
             currentAddr += checksumSize
-            #currentAddr += getAlignment(currentAddr,FileAlignment)
+
             currentAddr &= (0x100000000 - FileAlignment)
+            
+            #handle odd situation of ps2 containing compressed and uncompressed.
+            if platform == "PS2" and item.unpackedCompressedSize() > 0 :
+                currentAddr += item.DataSize
+                currentAddr += (FileAlignment - 1)
+                currentAddr &= (0x100000000 - FileAlignment)
         
         TotalFileLength += item.DataSize    
         lastItem = item
@@ -538,22 +557,24 @@ def createBecArchive(dir, filename, becmap, demobec,platform,debug=False):
         #print("writing "+item.FileName+" with file size : "+str(len(item.FileByteArray))+" original offset : "+str(item.OriginalDataOffset) + " current offset : "+str(item.DataOffset)+"  matches "+str(item.OriginalDataOffset==item.DataOffset));
         output_rom.write(item.FileByteArray)
         
+        #checksum
         if (item.storedSize() > 0):
             output_rom.write(struct.pack('<II', 0, 0)) 
         else :
             output_rom.write(b'\0' * FileAlignment)
         
+
+        alignFileSizeWithZeros(output_rom, output_rom.tell(), FileAlignment)
+        
+        if platform == "PS2" and item.unpackedCompressedSize() > 0 :
+            uncompressedFileArray = zlib.decompress(item.FileByteArray)
+            output_rom.write(uncompressedFileArray)
+            alignFileSizeWithZeros(output_rom, output_rom.tell(), FileAlignment)
+
+        
+        
         if (item.OldSize != item.DataSize):
             print("Adding new file "+item.FileName+" hash "+str(item.PathHash)+ " with dataoffset + "+str(item.DataOffset)+" size "+str(item.DataSize))
-
-        diff = currentPosition + item.storedSize() + checksumSize
-        
-        #if output_rom.tell() != diff :
-        #     print("After write of "+item.FileName+" position = "+str(output_rom.tell())+" diff is : "+str(diff))
-             
-             
-        alignFileSizeWithZeros(output_rom, output_rom.tell(), FileAlignment)
-        #print("After data write and align : "+str(output_rom.tell()))
 		
         output_rom.flush()
         
