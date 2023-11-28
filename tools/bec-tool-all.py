@@ -380,8 +380,14 @@ def createBecArchive(dir, filename, becmap, demobec,platform,debug=False):
     print("Platform is : "+platform)
     
     compress = False
+    includeUncompressed = False
+    
+    
     if platform == "XBOX" or platform == "PS2" :
         compress = True
+
+    if platform == "PS2" : 
+        includeUncompressed = True
 
     print("compress is set to : "+str(compress))	
 
@@ -504,7 +510,7 @@ def createBecArchive(dir, filename, becmap, demobec,platform,debug=False):
             currentAddr &= (0x100000000 - FileAlignment)
             
             #handle odd situation of ps2 containing compressed and uncompressed.
-            if platform == "PS2" and item.unpackedCompressedSize() > 0 :
+            if includeUncompressed and item.unpackedCompressedSize() > 0 :
                 currentAddr += item.DataSize
                 currentAddr += (FileAlignment - 1)
                 currentAddr &= (0x100000000 - FileAlignment)
@@ -566,7 +572,7 @@ def createBecArchive(dir, filename, becmap, demobec,platform,debug=False):
 
         alignFileSizeWithZeros(output_rom, output_rom.tell(), FileAlignment)
         
-        if platform == "PS2" and item.unpackedCompressedSize() > 0 :
+        if includeUncompressed and item.unpackedCompressedSize() > 0 :
             uncompressedFileArray = zlib.decompress(item.FileByteArray)
             output_rom.write(uncompressedFileArray)
             alignFileSizeWithZeros(output_rom, output_rom.tell(), FileAlignment)
