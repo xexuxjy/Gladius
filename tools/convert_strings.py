@@ -52,8 +52,8 @@ def compressTok(filename, inputfile, debug=False):
         output_rom.write(struct.pack('<I', int(offset)))
         offset += len(string) + 1
     for string in strings:
-        output_rom.write(struct.pack('<' + str(len(string)+1) + 's', string + '\0'))
-	
+        output_rom.write(struct.pack('<' + str(len(string)+1) + 's', string.encode('windows-1252')))
+        
     return output
 
 
@@ -79,4 +79,4 @@ if __name__ == "__main__":
 
     output = compressTok(filename, inputfile)
 	
-    print output
+    #print output
