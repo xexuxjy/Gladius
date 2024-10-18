@@ -7,7 +7,7 @@ import operator
 import argparse
 import time
 import hashlib
-import gcnamehashes
+import gladiushashes
 import zlib
 import queue
 import threading
@@ -245,10 +245,10 @@ def ReadByte(file, Offset):
     return word
 
 def getFilename(hashcode, count):
-      if hashcode in gcnamehashes.filenameHashes:
-          return gcnamehashes.filenameHashes[hashcode]
+      if hashcode in gladiushashes.filenameHashes:
+          return gladiushashes.filenameHashes[hashcode]
       else:
-        return str(count)+".bin"
+        return "unknown-"+str(count)+".bin"
 
 
 # UNPACK BEC-ARCHIVE
@@ -275,6 +275,7 @@ def unpackBecArchive2(file, filedir,demobec,debug=False):
     
     totalUnpacked = 0
     totalDuplicates = 0
+    totalUnknown = 0
 
     BecHeader = namedtuple('BecHeader', ['FileAlignment', 'NrOfFiles', 'HeaderMagic'])
     
@@ -302,6 +303,8 @@ def unpackBecArchive2(file, filedir,demobec,debug=False):
         data = file.read(0x10) # file.seek(0x10+0x10*i)
         fileEntry = FileEntry._make(struct.unpack('<IIII', data))
         filename = getFilename(fileEntry.PathHash,count)
+        if filename.startswith("unknown-"):
+            totalUnknown += 1
             
         romSection = RomSection(filename,str(fileEntry.PathHash),str(fileEntry.DataOffset),str(fileEntry.CompDataSize),str(fileEntry.DataSize))
         RomSections.append(romSection)
@@ -345,6 +348,7 @@ def unpackBecArchive2(file, filedir,demobec,debug=False):
     
     print("Total unpacked was : "+str(totalUnpacked))
     print("Total duplicates was : "+str(totalDuplicates))
+    print("Total unknown was : "+str(totalUnknown))
     
     return output
 

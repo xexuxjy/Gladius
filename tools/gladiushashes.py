@@ -6,7 +6,7 @@ calthaarena_leagues
 hashes = {
 }
 
-pathhashes = {
+filenameHashes = {
 0x8f4b6817 : "data/buildpaks/ca_affinityair.pak",
 0xc88dd1c4 : "data/buildpaks/ca_affinityairgreater.pak",
 0x40e4b910 : "data/buildpaks/ca_affinityearth.pak",

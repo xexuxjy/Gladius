@@ -185,7 +185,7 @@ def diagnose(filename, filedir, outFileList, debug=False):
     headerfilename = filedir + "_Header.txt"
     if not os.path.exists(os.path.dirname(headerfilename)) and os.path.dirname(headerfilename):
         os.makedirs(os.path.dirname(headerfilename))
-    fheader = open(headerfilename, 'w')
+    fheader = open(headerfilename, 'w', encoding="utf-8")
     fheader.write(header_output)
 
 
