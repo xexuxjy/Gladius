@@ -356,7 +356,7 @@ def unpackBecArchive2(file, filedir,demobec,debug=False):
 
 ###########################################################################################################################################################
 
-RomMap = []
+#RomMap = []
 
 
 def alignFileSizeWithZeros(file, pos, alignment):
@@ -381,6 +381,10 @@ def createBecArchive(dir, filename, becmap, demobec,platform,debug=False):
     FileAlignment = readfileListResults[1]
     HeaderMagic = readfileListResults[2]
 
+
+    RomMap = []
+
+
     print("Platform is : "+platform)
     
     compress = False
@@ -401,6 +405,24 @@ def createBecArchive(dir, filename, becmap, demobec,platform,debug=False):
     print("*** : "+str(readfileListResults[3]))
     # include any new files
     RomMap.extend(readfileListResults[3])
+
+
+   # Look for any files that might have been deleted?
+    deletedItems = []
+    for item in RomMap:
+        filepath = dir + "/" + item.FileName
+        filepath = normpath(filepath)
+        try:
+            file = open(filepath, "rb")
+        except FileNotFoundError as fnfe:
+            deletedItems.append(item)         
+    
+    print("Following are deleted : ")
+    for item in deletedItems :
+        print(item.FileName)
+    
+    RomMap = [item for item in RomMap if item not in deletedItems]  
+    
         
     if os.path.dirname(filename) != "":
         if not os.path.exists(os.path.dirname(filename)):
@@ -455,6 +477,7 @@ def createBecArchive(dir, filename, becmap, demobec,platform,debug=False):
 
         filepath = dir + "/" + item.FileName
         filepath = normpath(filepath)
+        
         file = open(filepath, "rb")
 
         item.DataSize = os.path.getsize(filepath)
